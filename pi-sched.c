@@ -16,8 +16,12 @@
 #include <math.h>
 #include <errno.h>
 #include <sched.h>
+#include <unistd.h>
+#include <sys/wait.h>
+#include "entropy_src.h"
 
 #define DEFAULT_ITERATIONS 1000000
+#define DEFAULT_CHILDREN 10
 #define RADIUS (RAND_MAX / 2)
 
 inline double dist(double x0, double y0, double x1, double y1){
@@ -32,42 +36,46 @@ double calcPi(long);
 
 int main(int argc, char* argv[]){
 
+    int i;
+    int pid;
     long iterations;
     struct sched_param param;
     int policy;
+    int child_count;
+    int entropy_i = 0;
 
     /* Process program arguments to select iterations and policy */
     /* Set default iterations if not supplied */
     if(argc < 2){
-    iterations = DEFAULT_ITERATIONS;
+        iterations = DEFAULT_ITERATIONS;
     }
     /* Set default policy if not supplied */
     if(argc < 3){
-    policy = SCHED_OTHER;
+        policy = SCHED_OTHER;
     }
     /* Set iterations if supplied */
     if(argc > 1){
-    iterations = atol(argv[1]);
-    if(iterations < 1){
-        fprintf(stderr, "Bad iterations value\n");
-        exit(EXIT_FAILURE);
-    }
+        iterations = atol(argv[1]);
+        if(iterations < 1){
+            fprintf(stderr, "Bad iterations value\n");
+            exit(EXIT_FAILURE);
+        }
     }
     /* Set policy if supplied */
     if(argc > 2){
-    if(!strcmp(argv[2], "SCHED_OTHER")){
-        policy = SCHED_OTHER;
-    }
-    else if(!strcmp(argv[2], "SCHED_FIFO")){
-        policy = SCHED_FIFO;
-    }
-    else if(!strcmp(argv[2], "SCHED_RR")){
-        policy = SCHED_RR;
-    }
-    else{
-        fprintf(stderr, "Unhandeled scheduling policy\n");
-        exit(EXIT_FAILURE);
-    }
+        if(!strcmp(argv[2], "SCHED_OTHER")){
+            policy = SCHED_OTHER;
+        }
+        else if(!strcmp(argv[2], "SCHED_FIFO")){
+            policy = SCHED_FIFO;
+        }
+        else if(!strcmp(argv[2], "SCHED_RR")){
+            policy = SCHED_RR;
+        }
+        else{
+            fprintf(stderr, "Unhandeled scheduling policy\n");
+            exit(EXIT_FAILURE);
+        }
     }
 
     /* Set process to max prioty for given scheduler */
@@ -77,12 +85,51 @@ int main(int argc, char* argv[]){
     fprintf(stdout, "Current Scheduling Policy: %d\n", sched_getscheduler(0));
     fprintf(stdout, "Setting Scheduling Policy to: %d\n", policy);
     if(sched_setscheduler(0, policy, &param)){
-    perror("Error setting scheduler policy");
-    exit(EXIT_FAILURE);
+        perror("Error setting scheduler policy");
+        exit(EXIT_FAILURE);
     }
     fprintf(stdout, "New Scheduling Policy: %d\n", sched_getscheduler(0));
 
-    fprintf(stdout, "Pi ~ %g\n", calcPi(iterations));
+    if(argc > 3) {
+        child_count = atoi(argv[3]);
+        if( child_count < 1 || child_count > 5000 )
+        {
+            fprintf(stderr, "Oh really. %d children? I'm going to save you from yourself.", child_count);
+            exit(EXIT_FAILURE);
+        }
+    } else {
+        child_count = DEFAULT_CHILDREN;
+    }
+
+    int* children = malloc(sizeof(int)*child_count);
+
+    /* Spawn children */
+    for(i=0; i<child_count; i++){
+        pid = fork();
+        if(pid > 0){
+            /* Each child gets a different value for entropy_i.*/
+            entropy_i += 1;
+            entropy_i %= ENTROPY_MAT_LEN;
+            children[i] = pid;
+        } else if(pid == 0) {
+            /* Use unique entropy_i to index into entropy matrix to get
+             * unique seed. */
+            srand(entropy_mat[entropy_i]);
+            fprintf(stdout, "%g ", calcPi(iterations));
+            fflush(stdout);
+            _exit(0);
+        } else if(pid < 0) {
+            fprintf(stderr, "Error forking. Bye.\n");
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    for(i=0; i<child_count; i++){
+        waitpid(children[i], NULL, 0);
+    }
+    free(children);
+
+    printf("\n");
 
     return 0;
 }
@@ -98,12 +145,12 @@ double calcPi(long iter) {
 
     /* Calculate pi using statistical methode across all iterations*/
     for(i=0; i<iter; i++){
-    x = (random() % (RADIUS * 2)) - RADIUS;
-    y = (random() % (RADIUS * 2)) - RADIUS;
-    if(zeroDist(x,y) < RADIUS){
-        inCircle++;
-    }
-    inSquare++;
+        x = (random() % (RADIUS * 2)) - RADIUS;
+        y = (random() % (RADIUS * 2)) - RADIUS;
+        if(zeroDist(x,y) < RADIUS){
+            inCircle++;
+        }
+        inSquare++;
     }
 
     /* Finish calculation */
