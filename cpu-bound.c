@@ -1,7 +1,7 @@
 /*
- * File: pi-sched.c
+ * File: cpu-bound.c
  * Author: Alex Beal
- * Heavily based on a program by Andy Sayler.
+ * Based on a Pi approximator by Andy Sayler
  * Project: CSCI 3753 Programming Assignment 3
  * Create Date: 2012/03/07
  * Modify Date: 2012/03/16
