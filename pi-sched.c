@@ -1,13 +1,16 @@
 /*
  * File: pi-sched.c
- * Author: Andy Sayler
+ * Author: Alex Beal
+ * Heavily based on a program by Andy Sayler.
  * Project: CSCI 3753 Programming Assignment 3
  * Create Date: 2012/03/07
- * Modify Date: 2012/03/09
+ * Modify Date: 2012/03/16
  * Description:
- *  This file contains a simple program for statistically
- *      calculating pi using a specific scheduling policy.
+ *  This file contains an CPU bound bencharmark. It forks off the specified number of
+ *  children, where each child generates an approximation of Pi.
  */
+
+//#define DEBUG
 
 /* Local Includes */
 #include <stdlib.h>
@@ -33,6 +36,7 @@ inline double zeroDist(double x, double y){
 }
 
 double calcPi(long);
+void childTask(long, int);
 
 int main(int argc, char* argv[]){
 
@@ -104,6 +108,8 @@ int main(int argc, char* argv[]){
     int* children = malloc(sizeof(int)*child_count);
 
     /* Spawn children */
+    fprintf(stdout, "Forking off children.\n");
+    fflush(0); //Flush before forking!
     for(i=0; i<child_count; i++){
         pid = fork();
         if(pid > 0){
@@ -112,11 +118,7 @@ int main(int argc, char* argv[]){
             entropy_i %= ENTROPY_MAT_LEN;
             children[i] = pid;
         } else if(pid == 0) {
-            /* Use unique entropy_i to index into entropy matrix to get
-             * unique seed. */
-            srand(entropy_mat[entropy_i]);
-            fprintf(stdout, "%g ", calcPi(iterations));
-            fflush(stdout);
+            childTask(iterations, entropy_i);
             _exit(0);
         } else if(pid < 0) {
             fprintf(stderr, "Error forking. Bye.\n");
@@ -132,6 +134,18 @@ int main(int argc, char* argv[]){
     printf("\n");
 
     return 0;
+}
+
+void childTask(long iterations, int entropy_i) {
+            /* Use unique entropy_i to index into entropy matrix to get
+             * unique seed. */
+            srand(entropy_mat[entropy_i]);
+            double pi = calcPi(iterations);
+#ifdef DEBUG
+            fprintf(stdout, "%g ",pi); 
+            fflush(stdout);
+#endif
+            (void) pi;
 }
 
 double calcPi(long iter) {
