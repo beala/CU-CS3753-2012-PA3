@@ -28,17 +28,13 @@ inline double zeroDist(double x, double y){
     return dist(0, 0, x, y);
 }
 
+double calcPi(long);
+
 int main(int argc, char* argv[]){
 
-    long i;
     long iterations;
     struct sched_param param;
     int policy;
-    double x, y;
-    double inCircle = 0.0;
-    double inSquare = 0.0;
-    double pCircle = 0.0;
-    double piCalc = 0.0;
 
     /* Process program arguments to select iterations and policy */
     /* Set default iterations if not supplied */
@@ -86,8 +82,22 @@ int main(int argc, char* argv[]){
     }
     fprintf(stdout, "New Scheduling Policy: %d\n", sched_getscheduler(0));
 
+    fprintf(stdout, "Pi ~ %g\n", calcPi(iterations));
+
+    return 0;
+}
+
+double calcPi(long iter) {
+
+    long i;
+    double x, y;
+    double inCircle = 0.0;
+    double inSquare = 0.0;
+    double pCircle = 0.0;
+    double piCalc = 0.0;
+
     /* Calculate pi using statistical methode across all iterations*/
-    for(i=0; i<iterations; i++){
+    for(i=0; i<iter; i++){
     x = (random() % (RADIUS * 2)) - RADIUS;
     y = (random() % (RADIUS * 2)) - RADIUS;
     if(zeroDist(x,y) < RADIUS){
@@ -100,8 +110,5 @@ int main(int argc, char* argv[]){
     pCircle = inCircle/inSquare;
     piCalc = pCircle * 4.0;
 
-    /* Print result */
-    fprintf(stdout, "pi = %f\n", piCalc);
-
-    return 0;
+    return piCalc;
 }
