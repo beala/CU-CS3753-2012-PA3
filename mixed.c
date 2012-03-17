@@ -1,5 +1,5 @@
 /*
- * File: io-bound.c
+ * File: mixed.c
  * Author: Alex Beal
  * Based on a Pi approximator by Andy Sayler
  * Project: CSCI 3753 Programming Assignment 3
@@ -171,21 +171,27 @@ double calcPi(long iter, char* tmp_fname) {
 
     /* Calculate pi using statistical methode across all iterations*/
     for(i=0; i<iter; i++){
-        tmp_file = fopen(tmp_fname, "w");
         x = (random() % (RADIUS * 2)) - RADIUS;
         y = (random() % (RADIUS * 2)) - RADIUS;
-        /* Write x, y to the file. */
-        fprintf(tmp_file, "%lg, %lg", x, y);
-        fflush(tmp_file);
-        /* Read it back out of the file. */
-        rewind(tmp_file);
-        fscanf(tmp_file, "%lg, %lg", &x, &y);
-        fclose(tmp_file);
         if(zeroDist(x,y) < RADIUS){
             inCircle++;
         }
         inSquare++;
     }
+
+    
+    tmp_file = fopen(tmp_fname, "w");
+    if(tmp_file == NULL){
+        printf("There was an error opening the tmp file.\n");
+        exit(EXIT_FAILURE);
+    }
+    /* Write x, y to the file. */
+    fprintf(tmp_file, "%lg, %lg", inCircle, inSquare);
+    fflush(tmp_file);
+    /* Read it back out of the file. */
+    rewind(tmp_file);
+    fscanf(tmp_file, "%lg, %lg", &inCircle, &inSquare);
+    fclose(tmp_file);
 
     /* Finish calculation */
     pCircle = inCircle/inSquare;
