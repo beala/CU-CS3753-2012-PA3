@@ -9,6 +9,7 @@
 #Executable Files#
 pi
 pi-sched
+cpu-bound
 
 #Output Files#
 
