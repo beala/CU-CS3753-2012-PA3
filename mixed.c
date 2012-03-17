@@ -173,14 +173,13 @@ double calcPi(long iter, char* tmp_fname) {
     for(i=0; i<iter; i++){
         tmp_file = fopen(tmp_fname, "w");
         x = (random() % (RADIUS * 2)) - RADIUS;
-        fprintf(tmp_file, "%lg\n", x);
-        fflush(tmp_file);
         y = (random() % (RADIUS * 2)) - RADIUS;
-        fprintf(tmp_file, "%lg", y);
+        /* Write x, y to the file. */
+        fprintf(tmp_file, "%lg, %lg", x, y);
         fflush(tmp_file);
-        fclose(tmp_file);
-        tmp_file = fopen(tmp_fname, "r");
-        fscanf(tmp_file, "%lg\n%lg", &x, &y);
+        /* Read it back out of the file. */
+        rewind(tmp_file);
+        fscanf(tmp_file, "%lg, %lg", &x, &y);
         fclose(tmp_file);
         if(zeroDist(x,y) < RADIUS){
             inCircle++;
