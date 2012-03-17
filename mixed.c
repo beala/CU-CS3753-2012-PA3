@@ -1,12 +1,12 @@
 /*
- * File: cpu-bound.c
+ * File: io-bound.c
  * Author: Alex Beal
  * Based on a Pi approximator by Andy Sayler
  * Project: CSCI 3753 Programming Assignment 3
  * Create Date: 2012/03/07
  * Modify Date: 2012/03/16
  * Description:
- *  This file contains an CPU bound bencharmark. It forks off the specified number of
+ *  This file contains an io bound bencharmark. It forks off the specified number of
  *  children, where each child generates an approximation of Pi.
  */
 
@@ -26,6 +26,9 @@
 #define DEFAULT_ITERATIONS 1000000
 #define DEFAULT_CHILDREN 10
 #define RADIUS (RAND_MAX / 2)
+#define TMP_DIR "/tmp/"
+#define DEFAULT_TMP_NAME "mixed"
+#define MAX_FILENAME_LEN 20
 
 inline double dist(double x0, double y0, double x1, double y1){
     return sqrt(pow((x1-x0),2) + pow((y1-y0),2));
@@ -35,7 +38,7 @@ inline double zeroDist(double x, double y){
     return dist(0, 0, x, y);
 }
 
-double calcPi(long);
+double calcPi(long, char*);
 void childTask(long, int);
 
 int main(int argc, char* argv[]){
@@ -140,7 +143,7 @@ void childTask(long iterations, int entropy_i) {
             /* Use unique entropy_i to index into entropy matrix to get
              * unique seed. */
             srand(entropy_mat[entropy_i]);
-            double pi = calcPi(iterations);
+            double pi = calcPi(iterations, "/tmp/test1");
 #ifdef DEBUG
             fprintf(stdout, "%g ",pi); 
             fflush(stdout);
@@ -148,7 +151,7 @@ void childTask(long iterations, int entropy_i) {
             (void) pi;
 }
 
-double calcPi(long iter) {
+double calcPi(long iter, char* tmp_fname) {
 
     long i;
     double x, y;
@@ -156,11 +159,21 @@ double calcPi(long iter) {
     double inSquare = 0.0;
     double pCircle = 0.0;
     double piCalc = 0.0;
+    FILE*  tmp_file;
 
     /* Calculate pi using statistical methode across all iterations*/
     for(i=0; i<iter; i++){
+        tmp_file = fopen(tmp_fname, "w");
         x = (random() % (RADIUS * 2)) - RADIUS;
+        fprintf(tmp_file, "%lg\n", x);
+        fflush(tmp_file);
         y = (random() % (RADIUS * 2)) - RADIUS;
+        fprintf(tmp_file, "%lg", y);
+        fflush(tmp_file);
+        fclose(tmp_file);
+        tmp_file = fopen(tmp_fname, "r");
+        fscanf(tmp_file, "%lg\n%lg", &x, &y);
+        fclose(tmp_file);
         if(zeroDist(x,y) < RADIUS){
             inCircle++;
         }
@@ -172,4 +185,18 @@ double calcPi(long iter) {
     piCalc = pCircle * 4.0;
 
     return piCalc;
+}
+
+int consFileName(char* dest, char* tmp_path, int unique, int max_len){
+    char name[MAX_FILENAME_LEN] = "";
+    char unique_str[MAX_FILENAME_LEN - 5];
+
+    sprintf(unique_str, "%d", unique);
+    strcat(name, tmp_path);
+    strcat(name, DEFAULT_TMP_NAME);
+    strcat(name, unique_str);
+
+    strncpy(dest, name, max_len);
+
+    return 0;
 }

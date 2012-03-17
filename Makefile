@@ -4,12 +4,15 @@ LFLAGS = -Wall -Wextra
 
 .PHONY: all clean
 
-all: cpu-bound
+all: cpu-bound mixed
 
 pi: pi.o
 	$(CC) $(LFLAGS) $^ -o $@ -lm
 
 cpu-bound: cpu-bound.o
+	$(CC) $(LFLAGS) $^ -o $@ -lm
+
+mixed: mixed.o
 	$(CC) $(LFLAGS) $^ -o $@ -lm
 
 pi.o: pi.c
@@ -18,8 +21,11 @@ pi.o: pi.c
 cpu-bound.o: cpu-bound.c
 	$(CC) $(CFLAGS) $<
 
+mixed.o: mixed.c
+	$(CC) $(CFLAGS) $<
+
 clean:
-	rm -f pi cpu-bound
+	rm -f pi cpu-bound mixed
 	rm -f *.o
 	rm -f *~
 	rm -f handout/*~
