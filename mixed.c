@@ -40,6 +40,7 @@ inline double zeroDist(double x, double y){
 
 double calcPi(long, char*);
 void childTask(long, int);
+int consFileName(char*, char*, int, int);
 
 int main(int argc, char* argv[]){
 
@@ -140,15 +141,22 @@ int main(int argc, char* argv[]){
 }
 
 void childTask(long iterations, int entropy_i) {
-            /* Use unique entropy_i to index into entropy matrix to get
-             * unique seed. */
-            srand(entropy_mat[entropy_i]);
-            double pi = calcPi(iterations, "/tmp/test1");
+    /* Use unique entropy_i to index into entropy matrix to get
+     * unique seed. */
+    char tmp_fname[MAX_FILENAME_LEN];
+    consFileName(tmp_fname, TMP_DIR, entropy_i, MAX_FILENAME_LEN);
 #ifdef DEBUG
-            fprintf(stdout, "%g ",pi); 
-            fflush(stdout);
+    printf("%s\n", tmp_fname);
+    fflush(0);
 #endif
-            (void) pi;
+    srand(entropy_mat[entropy_i]);
+    double pi = calcPi(iterations, tmp_fname);
+#ifdef DEBUG
+    fprintf(stdout, "%g ",pi); 
+    fflush(stdout);
+#endif
+    remove(tmp_fname);
+    (void) pi;
 }
 
 double calcPi(long iter, char* tmp_fname) {
