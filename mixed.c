@@ -147,7 +147,7 @@ void childTask(long iterations, int entropy_i) {
     consFileName(tmp_fname, TMP_DIR, entropy_i, MAX_FILENAME_LEN);
 #ifdef DEBUG
     printf("%s\n", tmp_fname);
-    fflush(0);
+    fflush(stdout);
 #endif
     srand(entropy_mat[entropy_i]);
     double pi = calcPi(iterations, tmp_fname);
