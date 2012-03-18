@@ -29,6 +29,8 @@
 #define TMP_DIR "/tmp/"
 #define DEFAULT_TMP_NAME "mixed"
 #define MAX_FILENAME_LEN 20
+#define MIN_ARGS 5
+#define USAGE "Usage: io-bound SCHED_POLICY SRC DEST NUM\n"
 
 inline double dist(double x0, double y0, double x1, double y1){
     return sqrt(pow((x1-x0),2) + pow((y1-y0),2));
@@ -39,52 +41,46 @@ inline double zeroDist(double x, double y){
 }
 
 double calcPi(long, char*);
-void childTask(long, int);
+void childTask(char*, char*);
 int consFileName(char*, char*, int, int);
 
 int main(int argc, char* argv[]){
 
     int i;
     int pid;
-    long iterations;
     struct sched_param param;
     int policy;
     int child_count;
-    int entropy_i = 0;
+    int file_counter = 0;
+    FILE* src;
+    char dest_name[MAX_FILENAME_LEN];
 
     /* Process program arguments to select iterations and policy */
-    /* Set default iterations if not supplied */
-    if(argc < 2){
-        iterations = DEFAULT_ITERATIONS;
+    if(argc < MIN_ARGS){
+        fprintf(stderr, "Not enough arguments: %d\n", argc-1);
+        fprintf(stderr, USAGE);
+        exit(EXIT_FAILURE);
     }
-    /* Set default policy if not supplied */
-    if(argc < 3){
+
+    if(!strcmp(argv[1], "SCHED_OTHER")){
         policy = SCHED_OTHER;
+    } else if(!strcmp(argv[1], "SCHED_FIFO")){
+        policy = SCHED_FIFO;
+    } else if(!strcmp(argv[1], "SCHED_RR")){
+        policy = SCHED_RR;
+    } else{
+        fprintf(stderr, "Unhandeled scheduling policy\n");
+        exit(EXIT_FAILURE);
     }
-    /* Set iterations if supplied */
-    if(argc > 1){
-        iterations = atol(argv[1]);
-        if(iterations < 1){
-            fprintf(stderr, "Bad iterations value\n");
-            exit(EXIT_FAILURE);
-        }
+
+    /* Test that you can open the src file */
+    src = fopen(argv[2], "r");
+    if(src == NULL) {
+        fprintf(stderr, "There was an error opening the source file: %s\n", argv[2]);
+        perror("");
+        exit(EXIT_FAILURE);
     }
-    /* Set policy if supplied */
-    if(argc > 2){
-        if(!strcmp(argv[2], "SCHED_OTHER")){
-            policy = SCHED_OTHER;
-        }
-        else if(!strcmp(argv[2], "SCHED_FIFO")){
-            policy = SCHED_FIFO;
-        }
-        else if(!strcmp(argv[2], "SCHED_RR")){
-            policy = SCHED_RR;
-        }
-        else{
-            fprintf(stderr, "Unhandeled scheduling policy\n");
-            exit(EXIT_FAILURE);
-        }
-    }
+    fclose(src);
 
     /* Set process to max prioty for given scheduler */
     param.sched_priority = sched_get_priority_max(policy);
@@ -98,15 +94,11 @@ int main(int argc, char* argv[]){
     }
     fprintf(stdout, "New Scheduling Policy: %d\n", sched_getscheduler(0));
 
-    if(argc > 3) {
-        child_count = atoi(argv[3]);
-        if( child_count < 1 || child_count > 5000 )
-        {
-            fprintf(stderr, "Oh really. %d children? I'm going to save you from yourself.", child_count);
-            exit(EXIT_FAILURE);
-        }
-    } else {
-        child_count = DEFAULT_CHILDREN;
+    child_count = atoi(argv[4]);
+    if( child_count < 1 || child_count > 5000 )
+    {
+        fprintf(stderr, "Oh really. %d children? I'm going to save you from yourself.", child_count);
+        exit(EXIT_FAILURE);
     }
 
     int* children = malloc(sizeof(int)*child_count);
@@ -117,12 +109,13 @@ int main(int argc, char* argv[]){
     for(i=0; i<child_count; i++){
         pid = fork();
         if(pid > 0){
-            /* Each child gets a different value for entropy_i.*/
-            entropy_i += 1;
-            entropy_i %= ENTROPY_MAT_LEN;
+            /* Each child gets a different value file_counter which
+             * will be used as a suffix for the dest files */
+            file_counter += 1;
             children[i] = pid;
         } else if(pid == 0) {
-            childTask(iterations, entropy_i);
+            consFileName(dest_name, argv[3], file_counter, MAX_FILENAME_LEN);
+            childTask(argv[2], dest_name);
             _exit(0);
         } else if(pid < 0) {
             fprintf(stderr, "Error forking. Bye.\n");
@@ -140,74 +133,41 @@ int main(int argc, char* argv[]){
     return 0;
 }
 
-void childTask(long iterations, int entropy_i) {
-    /* Use unique entropy_i to index into entropy matrix to get
-     * unique seed. */
-    char tmp_fname[MAX_FILENAME_LEN];
-    consFileName(tmp_fname, TMP_DIR, entropy_i, MAX_FILENAME_LEN);
-#ifdef DEBUG
-    printf("%s\n", tmp_fname);
-    fflush(stdout);
-#endif
-    srand(entropy_mat[entropy_i]);
-    double pi = calcPi(iterations, tmp_fname);
-#ifdef DEBUG
-    fprintf(stdout, "%g ",pi); 
-    fflush(stdout);
-#endif
-    remove(tmp_fname);
-    (void) pi;
-}
-
-double calcPi(long iter, char* tmp_fname) {
-
-    long i;
-    double x, y;
-    double inCircle = 0.0;
-    double inSquare = 0.0;
-    double pCircle = 0.0;
-    double piCalc = 0.0;
-    FILE*  tmp_file;
-
-    /* Calculate pi using statistical methode across all iterations*/
-    for(i=0; i<iter; i++){
-        x = (random() % (RADIUS * 2)) - RADIUS;
-        y = (random() % (RADIUS * 2)) - RADIUS;
-        if(zeroDist(x,y) < RADIUS){
-            inCircle++;
-        }
-        inSquare++;
-    }
-
-    
-    tmp_file = fopen(tmp_fname, "w");
-    if(tmp_file == NULL){
-        printf("There was an error opening the tmp file.\n");
+void childTask(char* src_name, char* dest_name) {
+    FILE * src;
+    FILE * dest;
+    char buf;
+    /* Open source file. */
+    src = fopen(src_name, "r");
+    if( src == NULL) {
+        fprintf(stderr, "There was an error opening the source file.\n");
+        perror("");
         exit(EXIT_FAILURE);
     }
-    /* Write x, y to the file. */
-    fprintf(tmp_file, "%lg, %lg", inCircle, inSquare);
-    fflush(tmp_file);
-    /* Read it back out of the file. */
-    rewind(tmp_file);
-    fscanf(tmp_file, "%lg, %lg", &inCircle, &inSquare);
-    fclose(tmp_file);
-
-    /* Finish calculation */
-    pCircle = inCircle/inSquare;
-    piCalc = pCircle * 4.0;
-
-    return piCalc;
+    /* Open/create dest file. */
+    dest = fopen(dest_name, "w");
+    if( dest == NULL) {
+        fprintf(stderr, "There was an error opening the destination file.\n");
+        perror("");
+        exit(EXIT_FAILURE);
+    }
+    /* copy copy copy. */
+    while( (buf = fgetc(src)) != EOF ){
+        fputc(buf, dest);
+        fflush(dest);
+    }
+    /* Close dest and src. */
+    fclose(dest);
+    fclose(src);
 }
 
-int consFileName(char* dest, char* tmp_path, int unique, int max_len){
+int consFileName(char* dest, char* prefix, int suffix, int max_len){
     char name[MAX_FILENAME_LEN] = "";
     char unique_str[MAX_FILENAME_LEN - 5];
 
-    sprintf(unique_str, "%d", unique);
-    strcat(name, tmp_path);
-    strcat(name, DEFAULT_TMP_NAME);
-    strcat(name, unique_str);
+    sprintf(unique_str, "%d", suffix);
+    strncat(name, prefix, MAX_FILENAME_LEN);
+    strncat(name, unique_str, MAX_FILENAME_LEN);
 
     strncpy(dest, name, max_len);
 

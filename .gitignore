@@ -11,6 +11,7 @@ pi
 pi-sched
 cpu-bound
 mixed
+io-bound
 
 #Output Files#
 
