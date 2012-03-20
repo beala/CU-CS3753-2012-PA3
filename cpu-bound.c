@@ -26,6 +26,7 @@
 #define DEFAULT_ITERATIONS 1000000
 #define DEFAULT_CHILDREN 10
 #define RADIUS (RAND_MAX / 2)
+#define USAGE "./cpu-bound ITERATIONS SCHED_POLICY PROC_COUNT\n"
 
 inline double dist(double x0, double y0, double x1, double y1){
     return sqrt(pow((x1-x0),2) + pow((y1-y0),2));
@@ -49,6 +50,10 @@ int main(int argc, char* argv[]){
     int entropy_i = 0;
 
     /* Process program arguments to select iterations and policy */
+    if(argc != 4) {
+        fprintf(stderr, USAGE);
+        exit(EXIT_FAILURE);
+    }
     /* Set default iterations if not supplied */
     if(argc < 2){
         iterations = DEFAULT_ITERATIONS;
@@ -62,6 +67,7 @@ int main(int argc, char* argv[]){
         iterations = atol(argv[1]);
         if(iterations < 1){
             fprintf(stderr, "Bad iterations value\n");
+            fprintf(stderr, USAGE);
             exit(EXIT_FAILURE);
         }
     }
@@ -78,6 +84,7 @@ int main(int argc, char* argv[]){
         }
         else{
             fprintf(stderr, "Unhandeled scheduling policy\n");
+            fprintf(stderr, USAGE);
             exit(EXIT_FAILURE);
         }
     }
@@ -99,6 +106,7 @@ int main(int argc, char* argv[]){
         if( child_count < 1 || child_count > 5000 )
         {
             fprintf(stderr, "Oh really. %d children? I'm going to save you from yourself.", child_count);
+            fprintf(stderr, USAGE);
             exit(EXIT_FAILURE);
         }
     } else {

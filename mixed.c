@@ -185,7 +185,7 @@ double calcPi(long iter, char* tmp_fname) {
         printf("There was an error opening the tmp file.\n");
         exit(EXIT_FAILURE);
     }
-    /* Write x, y to the file. */
+    /* Write inCircle and inSquare to file */
     fprintf(tmp_file, "%lg, %lg", inCircle, inSquare);
     fflush(tmp_file);
     /* Read it back out of the file. */
