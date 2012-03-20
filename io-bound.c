@@ -7,7 +7,7 @@
  * Modify Date: 2012/03/16
  * Description:
  *  This file contains an io bound bencharmark. It forks off the specified number of
- *  children, where each child generates an approximation of Pi.
+ *  children, where each child copies the source file once.
  */
 
 //#define DEBUG
@@ -16,29 +16,14 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <math.h>
 #include <errno.h>
 #include <sched.h>
 #include <unistd.h>
 #include <sys/wait.h>
-#include "entropy_src.h"
 
-#define DEFAULT_ITERATIONS 1000000
-#define DEFAULT_CHILDREN 10
-#define RADIUS (RAND_MAX / 2)
-#define TMP_DIR "/tmp/"
-#define DEFAULT_TMP_NAME "mixed"
 #define MAX_FILENAME_LEN 20
 #define MIN_ARGS 5
 #define USAGE "Usage: io-bound SCHED_POLICY SRC DEST NUM\n"
-
-inline double dist(double x0, double y0, double x1, double y1){
-    return sqrt(pow((x1-x0),2) + pow((y1-y0),2));
-}
-
-inline double zeroDist(double x, double y){
-    return dist(0, 0, x, y);
-}
 
 double calcPi(long, char*);
 void childTask(char*, char*);
@@ -154,6 +139,7 @@ void childTask(char* src_name, char* dest_name) {
     /* copy copy copy. */
     while( (buf = fgetc(src)) != EOF ){
         fputc(buf, dest);
+        /* Copy one character at a time. Ouch! */
         fflush(dest);
     }
     /* Close dest and src. */
