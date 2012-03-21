@@ -9,7 +9,7 @@ format_s = "%e, %U, %S, %P, %c, %w, %I, %O"
 # for mixed and cpu-bound
 rounds = "50000000"
 # for all benchmarks
-procs = ["5", "50", "100"]
+procs = ["5", "50", "500"]
 
 # run cpu-bound benchmarks
 #rounds = "1000"

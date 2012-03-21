@@ -11,6 +11,7 @@
  */
 
 //#define DEBUG
+#define _GNU_SOURCE
 
 /* Local Includes */
 #include <stdlib.h>
@@ -20,13 +21,15 @@
 #include <sched.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <sys/types.h>
+#include <fcntl.h>
 
 #define MAX_FILENAME_LEN 20
-#define MIN_ARGS 5
-#define USAGE "Usage: io-bound SCHED_POLICY SRC DEST NUM\n"
+#define MIN_ARGS 7
+#define USAGE "Usage: io-bound SCHED_POLICY SRC DEST BLOCK_SIZE TRAN_SIZE NUM\n"
 
 double calcPi(long, char*);
-void childTask(char*, char*);
+void childTask(size_t, size_t, char*, char*);
 int consFileName(char*, char*, int, int);
 
 int main(int argc, char* argv[]){
@@ -39,6 +42,8 @@ int main(int argc, char* argv[]){
     int file_counter = 0;
     FILE* src;
     char dest_name[MAX_FILENAME_LEN];
+    size_t block_size;
+    ssize_t tran_size;
 
     /* Process program arguments to select iterations and policy */
     if(argc < MIN_ARGS){
@@ -79,10 +84,24 @@ int main(int argc, char* argv[]){
     }
     fprintf(stdout, "New Scheduling Policy: %d\n", sched_getscheduler(0));
 
-    child_count = atoi(argv[4]);
+    if(atoi(argv[4]) < 0){
+        fprintf(stderr, "Invalid block size.\n");
+        exit(EXIT_FAILURE);
+    } else {
+        block_size = atoi(argv[4]);
+    }
+
+    if(atoi(argv[5]) < 0 || atoi(argv[5]) < (int)block_size){
+        fprintf(stderr, "Invalid transfer size.\n");
+        exit(EXIT_FAILURE);
+    } else {
+        tran_size = atoi(argv[5]);
+    }
+
+    child_count = atoi(argv[6]);
     if( child_count < 1 || child_count > 5000 )
     {
-        fprintf(stderr, "Oh really. %d children? I'm going to save you from yourself.", child_count);
+        fprintf(stderr, "Too many or too few children procs: %d\n", child_count);
         exit(EXIT_FAILURE);
     }
 
@@ -100,7 +119,7 @@ int main(int argc, char* argv[]){
             children[i] = pid;
         } else if(pid == 0) {
             consFileName(dest_name, argv[3], file_counter, MAX_FILENAME_LEN);
-            childTask(argv[2], dest_name);
+            childTask(block_size, tran_size, argv[2], dest_name);
             _exit(0);
         } else if(pid < 0) {
             fprintf(stderr, "Error forking. Bye.\n");
@@ -118,33 +137,67 @@ int main(int argc, char* argv[]){
     return 0;
 }
 
-void childTask(char* src_name, char* dest_name) {
-    FILE * src;
-    FILE * dest;
-    char buf;
+void childTask(size_t b_size, size_t t_size, char* src_name, char* dest_name) {
+    int srcFD;
+    int destFD;
+    ssize_t bytes_read = 0;
+    ssize_t bytes_written = 0;
+    ssize_t total_bytes_written = 0;
+    char* buf = NULL;
     /* Open source file. */
-    src = fopen(src_name, "r");
-    if( src == NULL) {
+    srcFD = open(src_name, O_RDONLY | O_SYNC);
+    if( srcFD < 0) {
         fprintf(stderr, "There was an error opening the source file.\n");
         perror("");
         exit(EXIT_FAILURE);
     }
     /* Open/create dest file. */
-    dest = fopen(dest_name, "w");
-    if( dest == NULL) {
+    destFD = open(dest_name, O_WRONLY | O_CREAT | O_TRUNC | O_SYNC,
+                     S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
+    if( destFD < 0) {
         fprintf(stderr, "There was an error opening the destination file.\n");
         perror("");
         exit(EXIT_FAILURE);
     }
-    /* copy copy copy. */
-    while( (buf = fgetc(src)) != EOF ){
-        fputc(buf, dest);
-        /* Copy one character at a time. Ouch! */
-        fflush(dest);
+
+    /* malloc buffer */
+    buf = malloc(b_size*sizeof(char));
+    if(buf == NULL) {
+        fprintf(stderr, "Error allocating buffer.\n");
+        exit(EXIT_FAILURE);
     }
-    /* Close dest and src. */
-    fclose(dest);
-    fclose(src);
+    do {
+        bytes_read = read(srcFD, buf, b_size);
+        if(bytes_read < 0){
+            perror("Error reading source file.");
+            exit(EXIT_FAILURE);
+        }
+
+        if(bytes_read > 0) {
+            bytes_written = write(destFD, buf, bytes_read);
+            if(bytes_written < 0){
+                perror("Error writing to output file.");
+                exit(EXIT_FAILURE);
+            } else {
+                total_bytes_written += bytes_written;
+            }
+        }
+        if(bytes_read != (ssize_t)b_size){
+            if(lseek(srcFD, 0, SEEK_SET)){
+                perror("Error seeking to beginning of file.");
+                exit(EXIT_FAILURE);
+            }
+        }
+    } while(total_bytes_written < (ssize_t)t_size);
+
+    if(close(srcFD)){
+        perror("Error closing source file.");
+        exit(EXIT_FAILURE);
+    }
+    if(close(destFD)){
+        perror("Error closing dest file.");
+        exit(EXIT_FAILURE);
+    }
 }
 
 int consFileName(char* dest, char* prefix, int suffix, int max_len){
@@ -152,6 +205,10 @@ int consFileName(char* dest, char* prefix, int suffix, int max_len){
     char unique_str[MAX_FILENAME_LEN - 5];
 
     sprintf(unique_str, "%d", suffix);
+    if(strlen(unique_str) + strlen(prefix) > MAX_FILENAME_LEN){
+        fprintf(stderr, "Output filename too long.\n");
+        exit(EXIT_FAILURE);
+    }
     strncat(name, prefix, MAX_FILENAME_LEN);
     strncat(name, unique_str, MAX_FILENAME_LEN);
 
