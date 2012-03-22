@@ -9,7 +9,8 @@ format_s = "%e, %U, %S, %P, %c, %w, %I, %O"
 # for mixed and cpu-bound
 rounds = "50000000"
 # for all benchmarks
-procs = ["5", "50", "500"]
+procs = ["5", "50", "100"]
+#procs = ["1", "2", "3"]
 
 # run cpu-bound benchmarks
 #rounds = "1000"
@@ -31,15 +32,18 @@ for sched in cpu_results.iteritems():
 
 
 # run io-bound benchmarks
-src_path = "./warandpeace-small.txt"
-dest_path = "/tmp/w"
+# /usr/bin/time -v ./io-bound SCHED_OTHER warandpeace.txt /media/bench/w 10000 100000000 10
+src_path = "./warandpeace.txt"
+dest_path = "/media/bench/w"
+bsize = "10000"
+tsize = "100000000"
 command = ["/usr/bin/time", "-f", format_s, "./io-bound"]
 cpu_results = {}
 for sched in scheds:
     tmp_dict = {}
     for proc in procs:
         print "%s %s running" % (sched,proc)
-        results = subprocess.Popen(command + [sched, src_path, dest_path, proc], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        results = subprocess.Popen(command + [sched, src_path, dest_path, bsize, tsize, proc], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         tmp_dict[proc] = results.communicate()
         cpu_results[sched] = tmp_dict
         print "%s %s done" % (sched,proc)
@@ -50,13 +54,17 @@ for sched in cpu_results.iteritems():
         print "\t%s: %s" % (proc[0], proc[1][1])
 
 # run mixed benchmarks
-command = ["/usr/bin/time", "-f", format_s, "./cpu-bound"]
+# /usr/bin/time -v ./mixed 10000000 SCHED_OTHER 50 10000 100000000 ./warandpeace.txt /media/bench/w
+rounds = "10000000"
+bsize = "10000"
+tsize = "100000000"
+command = ["/usr/bin/time", "-f", format_s, "./mixed"]
 cpu_results = {}
 for sched in scheds:
     tmp_dict = {}
     for proc in procs:
         print "%s %s running" % (sched,proc)
-        results = subprocess.Popen(command + [rounds] + [sched] + [proc], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        results = subprocess.Popen(command + [rounds] + [sched] + [proc] + [bsize, tsize, src_path, dest_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         tmp_dict[proc] = results.communicate()
         cpu_results[sched] = tmp_dict
         print "%s %s done" % (sched,proc)

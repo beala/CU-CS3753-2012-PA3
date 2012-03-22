@@ -28,7 +28,6 @@
 #define MIN_ARGS 7
 #define USAGE "Usage: io-bound SCHED_POLICY SRC DEST BLOCK_SIZE TRAN_SIZE NUM\n"
 
-double calcPi(long, char*);
 void childTask(size_t, size_t, char*, char*);
 int consFileName(char*, char*, int, int);
 
@@ -198,6 +197,8 @@ void childTask(size_t b_size, size_t t_size, char* src_name, char* dest_name) {
         perror("Error closing dest file.");
         exit(EXIT_FAILURE);
     }
+
+    free(buf);
 }
 
 int consFileName(char* dest, char* prefix, int suffix, int max_len){
