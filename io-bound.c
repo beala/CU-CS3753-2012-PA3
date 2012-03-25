@@ -1,5 +1,5 @@
 /*
- * File: mixed.c
+ * File: io-bound.c
  * Author: Alex Beal
  * Based on a Pi approximator by Andy Sayler
  * Project: CSCI 3753 Programming Assignment 3
