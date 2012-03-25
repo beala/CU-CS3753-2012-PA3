@@ -33,7 +33,3 @@ mixed.o: mixed.c
 clean:
 	rm -f pi cpu-bound mixed io-bound
 	rm -f *.o
-	rm -f *~
-	rm -f handout/*~
-	rm -f handout/*.log
-	rm -f handout/*.aux
